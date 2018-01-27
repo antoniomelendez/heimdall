@@ -13,7 +13,7 @@ defmodule HeimdallWeb.ApiController do
   # this route takes a comma separated list and should add a check digit to each element
   # http://0.0.0.0:4000/api/add_a_bunch_of_check_digits/12345,233454,34341432
   def add_a_bunch_of_check_digits(conn, params) do
-    check_digits_with_upc = String.split(params.upcs, ",")
+    check_digits_with_upc = String.split(params.upc, ",")
     |> tl
     |> Enum.map((fn upc -> _calculate_check_digit(upc) end))
 
@@ -23,7 +23,32 @@ defmodule HeimdallWeb.ApiController do
   # these are private methods
   defp _calculate_check_digit(upc) do
     #this is where your code to calculate the check digit should go
-    upc
+    upc 
+    |> String.codepoints
+    |> Enum.with_index
+    |> process_check_digit
+  end
+
+  defp process_check_digit(num_list) do
+    {odd_sum, even_sum} = Enum.reduce(num_list, {0,0}, &process_digit/2)
+    remainder = rem((odd_sum * 3) + even_sum, 10)
+    if remainder == 0 do 
+      remainder 
+    else
+    10 - remainder
+    end
+  end
+
+  defp process_digit({value, index}, tuple = {odd_sum, _even_sum}) when rem(index, 2) == 0 do
+    {as_int, _} = value 
+    |> Integer.parse(10)
+    put_elem(tuple, 0, as_int + odd_sum)
+  end
+
+  defp process_digit({value, index}, tuple = {_odd_sum, even_sum}) when rem(index, 2) != 0 do
+    {as_int, _} = value 
+    |> Integer.parse(10)
+    put_elem(tuple, 1, as_int + even_sum)
   end
 
   # this is a thing to format your responses and return json to the client
